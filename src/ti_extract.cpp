@@ -19,7 +19,6 @@ int main(int argc,char **argv) {
   std::string thermalTopic = "/optris/thermal_image";
   std::string imuTopic = "/imu/data";
 
-
   // subscribe
   ros::Subscriber imuSub = nh.subscribe(imuTopic, 1, &imuCb);
   ros::Subscriber ThermalSub = nh.subscribe(thermalTopic, 10, &thermalCb);
