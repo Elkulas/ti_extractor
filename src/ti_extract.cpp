@@ -23,9 +23,6 @@ int main(int argc,char **argv) {
   ros::Subscriber imuSub = nh.subscribe(imuTopic, 1, &imuCb);
   ros::Subscriber ThermalSub = nh.subscribe(thermalTopic, 10, &thermalCb);
 
-
-
-
   // ros::Rate loop_rate(10);
 
   ROS_INFO("Hello World!");

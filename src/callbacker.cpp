@@ -24,10 +24,12 @@
 #include "math.h"
 
 namespace ti {
+void dftShift(cv::Mat& img);
+cv::Mat showSpectrum(cv::Mat& spectrum, bool inverse);
 
 // argu
 std::string out_root = "/home/jjj/NGCLAB/catkin_ws/src/ti_extractor/data";
-std::tuple<std::string, std::string> outPaths;
+std::tuple<std::string, std::string, std::string> outPaths;
 // func 1
 // argument parsing
 void parseArgument(char *arg) {
@@ -60,11 +62,14 @@ void CreateFolder(const std::string &path) {
 
 void constructFolder() {
   outPaths = std::make_tuple(
-      out_root + "thermal/", out_root + "thermalRaw/");
+      out_root + "thermal/",
+      out_root + "thermalRaw/",
+      out_root + "thermalSpect/");
   std::cout << "1 constructFolder: save in " << out_root << std::endl;
   std::cout << "1 constructFolder: save rgb in " << std::get<0>(outPaths) << std::endl;
   CreateFolder(std::get<0>(outPaths));
   CreateFolder(std::get<1>(outPaths));
+  CreateFolder(std::get<2>(outPaths));
 }
 
 void imuCb(const sensor_msgs::Imu &msg) {
@@ -84,12 +89,13 @@ void imuCb(const sensor_msgs::Imu &msg) {
 
 void thermalCb(const sensor_msgs::ImageConstPtr img) {
   // thermal 
-  cv_bridge::CvImagePtr right_cv_ptr =
+  cv_bridge::CvImagePtr cv_ptr =
       cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO16);
-  cv::Mat lwir_image = right_cv_ptr->image.clone();
+  cv::Mat lwir_image = cv_ptr->image.clone();
 
   assert(lwir_image.type() == CV_16UC1);
   assert(lwir_image.channels() == 1);
+
   // process thermal
   cv::Mat m;
   cv::Mat v;
@@ -120,22 +126,68 @@ void thermalCb(const sensor_msgs::ImageConstPtr img) {
     }
   }
 
-  double right_time = right_cv_ptr->header.stamp.toSec();
-
   lwir_image.convertTo(lwir_image, CV_8UC1);
 
+  // Spectrum
+  cv::Mat src_proc;
+  lwir_image.convertTo(src_proc, CV_64FC1);
+  cv::Mat spectrum(src_proc.size(), CV_64FC2);
+  cv::dft(src_proc, spectrum, cv::DFT_COMPLEX_OUTPUT, 0);
+  dftShift(spectrum);
+  cv::Mat outspec = showSpectrum(spectrum, false);
+
+  cv::Mat combine;
+  cv::hconcat(lwir_image, outspec, combine);
+
+
+  // output
   char bufoptris[1000];
   snprintf(bufoptris, 1000, "%s/%lf.png", std::get<0>(outPaths).c_str(),
-           right_cv_ptr->header.stamp.toSec());
+           cv_ptr->header.stamp.toSec());
   imwrite(bufoptris, lwir_image);
 
   char bufoptris_raw[1000];
   snprintf(bufoptris_raw, 1000, "%s/%lf.png", std::get<1>(outPaths).c_str(),
-           right_cv_ptr->header.stamp.toSec());
-  imwrite(bufoptris_raw, right_cv_ptr->image);
+           cv_ptr->header.stamp.toSec());
+  imwrite(bufoptris_raw, cv_ptr->image);
 
+  char bufoptris_spec[1000];
+  snprintf(bufoptris_spec, 1000, "%s/%lf.png", std::get<2>(outPaths).c_str(),
+           cv_ptr->header.stamp.toSec());
+  imwrite(bufoptris_spec, combine);
 
+}
 
+void dftShift(cv::Mat& img){
+  int cx = img.cols / 2;
+  int cy = img.rows / 2;
+  cv::Mat q0 = img(cv::Rect(0, 0, cx, cy));
+  cv::Mat q1 = img(cv::Rect(cx, 0, cx, cy));
+  cv::Mat q2 = img(cv::Rect(0, cy, cx, cy));
+  cv::Mat q3 = img(cv::Rect(cx, cy, cx, cy));
+  cv::Mat tmp;
+  q0.copyTo(tmp);
+  q3.copyTo(q0);
+  tmp.copyTo(q3);
+  q1.copyTo(tmp);
+  q2.copyTo(q1);
+  tmp.copyTo(q2);
+}
+
+cv::Mat showSpectrum(cv::Mat& spectrum, bool inverse){
+  cv::Mat out_mag;
+  // split channel
+  cv::Mat mag_channel[2];
+  cv::split(spectrum, mag_channel);
+  cv::magnitude(mag_channel[0], mag_channel[1], out_mag);
+  // inverse
+  if(!inverse){
+    out_mag += cv::Scalar::all(1);
+    cv::log(out_mag, out_mag);
+  }
+  cv::normalize(out_mag, out_mag, 0, 255, cv::NORM_MINMAX);
+  out_mag.convertTo(out_mag, CV_8UC1);
+  return out_mag;
 }
 
 
