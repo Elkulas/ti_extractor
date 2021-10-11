@@ -29,7 +29,7 @@ cv::Mat showSpectrum(cv::Mat& spectrum, bool inverse);
 
 // argu
 std::string out_root = "/home/jjj/NGCLAB/catkin_ws/src/ti_extractor/data";
-std::tuple<std::string, std::string, std::string> outPaths;
+std::tuple<std::string, std::string> outPaths;
 // func 1
 // argument parsing
 void parseArgument(char *arg) {
@@ -63,13 +63,11 @@ void CreateFolder(const std::string &path) {
 void constructFolder() {
   outPaths = std::make_tuple(
       out_root + "thermal/",
-      out_root + "thermalRaw/",
-      out_root + "thermalSpect/");
+      out_root + "thermalRaw/");
   std::cout << "1 constructFolder: save in " << out_root << std::endl;
   std::cout << "1 constructFolder: save rgb in " << std::get<0>(outPaths) << std::endl;
   CreateFolder(std::get<0>(outPaths));
   CreateFolder(std::get<1>(outPaths));
-  CreateFolder(std::get<2>(outPaths));
 }
 
 void imuCb(const sensor_msgs::Imu &msg) {
@@ -90,7 +88,7 @@ void imuCb(const sensor_msgs::Imu &msg) {
 void thermalCb(const sensor_msgs::ImageConstPtr img) {
   // thermal 
   cv_bridge::CvImagePtr cv_ptr =
-      cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO16);
+      cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::TYPE_16UC1);
   cv::Mat lwir_image = cv_ptr->image.clone();
 
   assert(lwir_image.type() == CV_16UC1);
@@ -109,18 +107,20 @@ void thermalCb(const sensor_msgs::ImageConstPtr img) {
   double min = mininm;
   double max = maxinm;
 
+  cv::Mat output(lwir_image.size(), CV_8UC1);
+
   double alpha = (255.0f) / (max - min);
 
   for (int i = 0; i < (lwir_image).rows; ++i) {
     for (int j = 0; j < (lwir_image).cols; ++j) {
       double x = (double)(lwir_image.at<ushort>(i, j)) - min;
       if (x < 0.0f) {
-        lwir_image.at<ushort>(i, j) = 0;
+        output.at<uchar>(i, j) = 0;
       } else {
         if (x > max) {
-          lwir_image.at<ushort>(i, j) = 255;
+          output.at<uchar>(i, j) = 255;
         } else {
-          lwir_image.at<ushort>(i, j) = (ushort)alpha * x;
+          output.at<uchar>(i, j) = (alpha * x);
         }
       }
     }
@@ -128,33 +128,17 @@ void thermalCb(const sensor_msgs::ImageConstPtr img) {
 
   lwir_image.convertTo(lwir_image, CV_8UC1);
 
-  // Spectrum
-  cv::Mat src_proc;
-  lwir_image.convertTo(src_proc, CV_64FC1);
-  cv::Mat spectrum(src_proc.size(), CV_64FC2);
-  cv::dft(src_proc, spectrum, cv::DFT_COMPLEX_OUTPUT, 0);
-  dftShift(spectrum);
-  cv::Mat outspec = showSpectrum(spectrum, false);
-
-  cv::Mat combine;
-  cv::hconcat(lwir_image, outspec, combine);
-
-
   // output
   char bufoptris[1000];
   snprintf(bufoptris, 1000, "%s/%lf.png", std::get<0>(outPaths).c_str(),
            cv_ptr->header.stamp.toSec());
-  imwrite(bufoptris, lwir_image);
+  imwrite(bufoptris, output);
 
   char bufoptris_raw[1000];
   snprintf(bufoptris_raw, 1000, "%s/%lf.png", std::get<1>(outPaths).c_str(),
            cv_ptr->header.stamp.toSec());
   imwrite(bufoptris_raw, cv_ptr->image);
 
-  char bufoptris_spec[1000];
-  snprintf(bufoptris_spec, 1000, "%s/%lf.png", std::get<2>(outPaths).c_str(),
-           cv_ptr->header.stamp.toSec());
-  imwrite(bufoptris_spec, combine);
 
 }
 

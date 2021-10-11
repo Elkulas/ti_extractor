@@ -16,8 +16,8 @@ int main(int argc,char **argv) {
 
   ros::NodeHandle nh("~");
   // std::string imagetopic = "/camera/image_raw";
-  std::string thermalTopic = "/optris/thermal_image";
-  std::string imuTopic = "/imu/data";
+  std::string thermalTopic = "/tau_nodelet/thermal_image";
+  std::string imuTopic = "/vn100/imu";
 
   // subscribe
   ros::Subscriber imuSub = nh.subscribe(imuTopic, 1, &imuCb);
