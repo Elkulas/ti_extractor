@@ -14,6 +14,8 @@ int main(int argc,char **argv) {
   constructFolder();
   const std::string imu_rm = "rm " + out_root + "imu.txt";
   const int rm_err = system(imu_rm.c_str());
+  const std::string time_rm = "rm " + out_root + "time.txt";
+  const int time_err = system(time_rm.c_str());
 
   ros::NodeHandle nh("~");
   // std::string imagetopic = "/camera/image_raw";

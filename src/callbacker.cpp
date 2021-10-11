@@ -78,7 +78,7 @@ void imuCb(const sensor_msgs::Imu &msg) {
   snprintf(buf, 1000, "%s/imu.txt", out_root.c_str());
   fab = fopen(buf, "a");
 
-  fprintf(fab, "%lf, %lf, %lf, %lf, %lf, %lf, %lf\n", time,
+  fprintf(fab, "%lf %lf %lf %lf %lf %lf %lf\n", time,
           msg.angular_velocity.x, msg.angular_velocity.y,
           msg.angular_velocity.z, msg.linear_acceleration.x,
           msg.linear_acceleration.y, msg.linear_acceleration.z);
@@ -139,7 +139,14 @@ void thermalCb(const sensor_msgs::ImageConstPtr img) {
            cv_ptr->header.stamp.toSec());
   imwrite(bufoptris_raw, cv_ptr->image);
 
+  double time = cv_ptr->header.stamp.toSec();
+  FILE *fab;
+  char buf[1000];
+  snprintf(buf, 1000, "%s/time.txt", out_root.c_str());
+  fab = fopen(buf, "a");
 
+  fprintf(fab, "%lf %lf.png\n", time, time);
+  fclose(fab);
 }
 
 void dftShift(cv::Mat& img){
