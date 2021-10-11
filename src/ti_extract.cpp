@@ -12,7 +12,8 @@ int main(int argc,char **argv) {
   std::cout <<  "1 main: outpath: " << out_root << std::endl;
 
   constructFolder();
-
+  const std::string imu_rm = "rm " + out_root + "imu.txt";
+  const int rm_err = system(imu_rm.c_str());
 
   ros::NodeHandle nh("~");
   // std::string imagetopic = "/camera/image_raw";
